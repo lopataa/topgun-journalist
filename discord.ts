@@ -1,12 +1,13 @@
-import {Client, Interaction, Message, MessagePayload, Modal, TextChannel, User} from 'discord.js-selfbot-v13';
+import {Client, TextChannel} from 'discord.js-selfbot-v13';
 import {getRandomTimeBetween} from "./helpers";
-import schedule from "node-schedule";
+// @ts-ignore
+import * as schedule from "node-schedule";
 
 type JournalistConfig = {
     token: string;
     channelId: string;
     botUserId: string;
-    runAutomatically: false | string;
+    runAutomatically: boolean;
 }
 
 type WeeklyStatusResponse = string;
@@ -155,7 +156,7 @@ export class Journalist {
                     return;
                 } else {
                     // write status
-                    const envMessages = process.env.MESSAGES?.split("|");
+                    const envMessages = process.env.MESSAGES?.split("|") || [];
                     const message = envMessages[Math.floor(Math.random() * envMessages.length)];
                     console.log(`[TopGun Journalist] Writing status: ${message}`);
                     await this.writeStatus(message);
@@ -179,7 +180,9 @@ export class Journalist {
         console.log(`[TopGun Journalist] Scheduling run for ${time.toISOString()}.`);
         schedule.scheduleJob(time, () => {
             console.log(`[TopGun Journalist] Running scheduled job...`);
-            this.autoRun();
+            this.autoRun().then(() => {
+                console.log(`[TopGun Journalist] Scheduled job finished.`);
+            });
         });
     }
 }
