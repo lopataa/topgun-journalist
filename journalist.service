@@ -1,0 +1,10 @@
+[Unit]
+Description=Automatically write to the journal
+After=network.target
+[Service]
+ExecStart=npm start
+WorkingDirectory=/root/topgun-journalist/
+Type=simple
+Restart=on-failure
+[Install]
+WantedBy=multi-user.target
