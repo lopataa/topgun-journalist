@@ -33,29 +33,28 @@ export class Journalist {
             this.scheduleRun("today");
         }
 
-        new Promise<void>((resolve, reject) => {
-            this.client.login(process.env.DISCORD_TOKEN);
             this.client.on('ready', () => {
                 console.log(`[TopGun Journalist] Logged in as ${this.client?.user?.tag}.`);
                 this.isReady = true;
-                resolve();
             });
-        });
     }
 
     getWeeklyStatus() {
-        return new Promise<WeeklyStatusResponse>((resolve, reject) => {
+        return new Promise<WeeklyStatusResponse>(async (resolve, reject) => {
+            await this.client.login(this.config.token);
             console.log(`[TopGun Journalist] Getting weekly status...`);
 
-            this.client.channels.fetch(this.config.channelId).then((channel) => {
+            this.client.channels.fetch(this.config.channelId).then(async (channel) => {
 
                 if (!channel) {
                     console.log(`[TopGun Journalist] Channel not found.`);
+                    this.client.destroy();
                     reject();
                     return;
                 }
                 if (!channel?.isText()) {
                     console.log(`[TopGun Journalist] Channel is not a text channel.`);
+                    this.client.destroy();
                     reject();
                     return;
                 }
@@ -64,19 +63,22 @@ export class Journalist {
 
                 console.log(`[TopGun Journalist] Got channel.`);
 
-                channel.sendSlash(this.config.botUserId, "journal", ["status"]).then((message) => {
+                channel.sendSlash(this.config.botUserId, "journal", ["status"]).then(async (message) => {
                     if (!message) {
                         console.log(`[TopGun Journalist] Command failed.`);
+                        this.client.destroy();
                         reject();
                         return;
                     }
                     if (!message?.isMessage) {
                         console.log(`[TopGun Journalist] Command failed.`);
+                        this.client.destroy();
                         reject();
                         return;
                     }
                     console.log(`[TopGun Journalist] Got weekly status.`);
                     resolve(message.content as WeeklyStatusResponse);
+                    this.client.destroy();
                     return;
                 });
             });
@@ -103,22 +105,19 @@ export class Journalist {
 
     writeStatus(status: string) {
         return new Promise<void>(async (resolve, reject) => {
-            if (!this.isReady) {
-                setTimeout(() => {
-                    this.writeStatus(status);
-                }, 100);
-                return;
-            }
+            await this.client.login(this.config.token);
             console.log(`[TopGun Journalist] Writing daily status...`);
 
             let channel = await this.client.channels.fetch(this.config.channelId);
 
             if (!channel) {
                 console.log(`[TopGun Journalist] Channel not found.`);
+                this.client.destroy();
                 return reject();
             }
             if (!channel?.isText()) {
                 console.log(`[TopGun Journalist] Channel is not a text channel.`);
+                this.client.destroy();
                 return reject();
             }
 
@@ -128,17 +127,19 @@ export class Journalist {
 
             await channel.sendSlash(this.config.botUserId, "journal add ", [status]);
             console.log(`[TopGun Journalist] Wrote daily status.`);
+            this.client.destroy();
             resolve();
         });
     }
 
     async autoRun() {
+        await this.client.login(this.config.token);
         // if today is weekend, do nothing
         const today = new Date();
         if(today.getDay() == 0 || today.getDay() == 6) {
             console.log(`[TopGun Journalist] Today is weekend.`);
             // reschedule for next day
-            this.scheduleRun("tommorow");
+            this.client.destroy();
             return;
         }
         const todayString = `${today.getDate()}. ${today.getMonth() + 1}. ${today.getFullYear()}`;
@@ -151,14 +152,14 @@ export class Journalist {
             if (dailyStatus.date == todayString) {
                 if (dailyStatus.status) {
                     console.log(`[TopGun Journalist] Today's status is already written.`);
-                    // schedule for tommorow
-                    this.scheduleRun("tommorow");
+                    this.client.destroy();
                     return;
                 } else {
                     // write status
-                    const envMessages = process.env.MESSAGES?.split("|") || [];
+                    const envMessages = process.env.MESSAGE?.split("|") || [];
                     const message = envMessages[Math.floor(Math.random() * envMessages.length)];
                     console.log(`[TopGun Journalist] Writing status: ${message}`);
+                    this.client.destroy();
                     await this.writeStatus(message);
                 }
             }
@@ -181,6 +182,7 @@ export class Journalist {
         schedule.scheduleJob(time, () => {
             console.log(`[TopGun Journalist] Running scheduled job...`);
             this.autoRun().then(() => {
+                this.scheduleRun("tommorow");
                 console.log(`[TopGun Journalist] Scheduled job finished.`);
             });
         });
