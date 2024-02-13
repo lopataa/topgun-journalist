@@ -179,7 +179,7 @@ export class Journalist {
             time = new Date(time.getTime() + 24 * 60 * 60 * 1000);
         }
         console.log(`[TopGun Journalist] Scheduling run for ${time.toISOString()}.`);
-        schedule.scheduleJob(time, () => {
+        schedule.scheduleJob(time, async () => {
             console.log(`[TopGun Journalist] Running scheduled job...`);
             await this.autoRun().then(() => {
                 this.scheduleRun("tommorow");
