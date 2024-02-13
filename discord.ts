@@ -181,7 +181,7 @@ export class Journalist {
         console.log(`[TopGun Journalist] Scheduling run for ${time.toISOString()}.`);
         schedule.scheduleJob(time, () => {
             console.log(`[TopGun Journalist] Running scheduled job...`);
-            this.autoRun().then(() => {
+            await this.autoRun().then(() => {
                 this.scheduleRun("tommorow");
                 console.log(`[TopGun Journalist] Scheduled job finished.`);
             });
