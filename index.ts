@@ -1,8 +1,8 @@
 require('dotenv').config()
 
 if (!process.env.DISCORD_TOKEN) {
-  console.error('Missing DISCORD_TOKEN environment variable')
-  process.exit(1)
+    console.error('Missing DISCORD_TOKEN environment variable')
+    process.exit(1)
 }
 
 import {Journalist} from "./discord";
@@ -15,3 +15,7 @@ const journalist = new Journalist(
         runAutomatically: true // dont forget to add time range to .env.placeholder file
     }
 );
+
+(async () => {
+    await journalist.autoRun();
+})();

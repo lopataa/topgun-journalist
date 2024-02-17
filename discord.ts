@@ -1,4 +1,4 @@
-import {Client, TextChannel} from 'discord.js-selfbot-v13';
+import {Client, Message, TextChannel} from 'discord.js-selfbot-v13';
 import {getRandomTimeBetween} from "./helpers";
 // @ts-ignore
 import * as schedule from "node-schedule";
@@ -26,17 +26,19 @@ export class Journalist {
 
     constructor(config: JournalistConfig) {
         console.log(`[TopGun Journalist] Starting...`);
-        this.client = new Client({});
+        this.client = new Client({
+            ws: {}
+        });
         this.config = config;
 
-        if(this.config.runAutomatically) {
+        if (this.config.runAutomatically) {
             this.scheduleRun("today");
         }
 
-            this.client.on('ready', () => {
-                console.log(`[TopGun Journalist] Logged in as ${this.client?.user?.tag}.`);
-                this.isReady = true;
-            });
+        this.client.on('ready', () => {
+            console.log(`[TopGun Journalist] Logged in as ${this.client?.user?.tag}.`);
+            this.isReady = true;
+        });
     }
 
     getWeeklyStatus() {
@@ -63,13 +65,31 @@ export class Journalist {
 
                 console.log(`[TopGun Journalist] Got channel.`);
 
-                channel.sendSlash(this.config.botUserId, "journal", ["status"]).then(async (message) => {
+                channel.sendSlash(this.config.botUserId, "journal", ["status"], ).then(async (message) => {
+                    message = message as Message;
+                    if (message.flags.has('LOADING')) {
+                        return new Promise((r, rej) => {
+                            message = message as Message;
+                            let t = setTimeout(() => rej('timeout'), 15 * 60 * 1000);
+                            message.client.on('messageUpdate', (_, m) => {
+                                message = message as Message;
+                                if (_.id == message.id) {
+                                    clearTimeout(t);
+                                    r(m);
+                                }
+                            });
+                        });
+                    } else {
+                        return Promise.resolve(message);
+                    }
+                }).then(async (message) => {
                     if (!message) {
                         console.log(`[TopGun Journalist] Command failed.`);
                         this.client.destroy();
                         reject();
                         return;
                     }
+                    // @ts-ignore
                     if (!message?.isMessage) {
                         console.log(`[TopGun Journalist] Command failed.`);
                         this.client.destroy();
@@ -77,6 +97,7 @@ export class Journalist {
                         return;
                     }
                     console.log(`[TopGun Journalist] Got weekly status.`);
+                    // @ts-ignore
                     resolve(message.content as WeeklyStatusResponse);
                     this.client.destroy();
                     return;
@@ -136,7 +157,7 @@ export class Journalist {
         await this.client.login(this.config.token);
         // if today is weekend, do nothing
         const today = new Date();
-        if(today.getDay() == 0 || today.getDay() == 6) {
+        if (today.getDay() == 0 || today.getDay() == 6) {
             console.log(`[TopGun Journalist] Today is weekend.`);
             // reschedule for next day
             this.client.destroy();
@@ -148,6 +169,7 @@ export class Journalist {
         // find today's status
         const weeklyStatus = await this.getWeeklyStatus();
         const weeklyStatusParsed = this.parseStatus(weeklyStatus);
+        console.log(weeklyStatus);
         for (let dailyStatus of weeklyStatusParsed) {
             if (dailyStatus.date == todayString) {
                 if (dailyStatus.status) {
@@ -167,7 +189,7 @@ export class Journalist {
     }
 
     scheduleRun(to: "today" | "tommorow") {
-        if(!this.config.runAutomatically) {
+        if (!this.config.runAutomatically) {
             console.log(`[TopGun Journalist] Not scheduling run because runAutomatically is false.`);
             return;
         }
@@ -175,16 +197,15 @@ export class Journalist {
         const [hours, minutes] = whenTime.split(":");
         const today = new Date();
         let time = new Date(today.getFullYear(), today.getMonth(), today.getDate(), parseInt(hours), parseInt(minutes), 0);
-        if(to == "tommorow") {
+        if (to == "tommorow") {
             time = new Date(time.getTime() + 24 * 60 * 60 * 1000);
         }
         console.log(`[TopGun Journalist] Scheduling run for ${time.toISOString()}.`);
         schedule.scheduleJob(time, async () => {
             console.log(`[TopGun Journalist] Running scheduled job...`);
-            await this.autoRun().then(() => {
-                this.scheduleRun("tommorow");
-                console.log(`[TopGun Journalist] Scheduled job finished.`);
-            });
+            await this.autoRun()
+            this.scheduleRun("tommorow");
+            console.log(`[TopGun Journalist] Scheduled job finished.`);
         });
     }
 }
