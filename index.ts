@@ -15,7 +15,3 @@ const journalist = new Journalist(
         runAutomatically: true // dont forget to add time range to .env.placeholder file
     }
 );
-
-(async () => {
-    await journalist.autoRun();
-})();
